@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Chattanooga Flood Map</title>
+        <meta charset='utf-8' />
+        <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+        <script src="https://unpkg.com/maplibre-gl@^4.7.1/dist/maplibre-gl.js"></script>
+        <link href="https://unpkg.com/maplibre-gl@^4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+
+        <!-- font -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+
+        <style>
+            * {
+                font-family: "Inter", sans-serif;
+                font-optical-sizing: auto;
+                font-style: normal;
+            }
+
+            body {
+                margin: 0;
+                padding: 0;
+            }
+
+            #app {
+                bottom: 0;
+                left: 0;
+                right: 0;
+                position: absolute;
+                top: 0;
+            }
+            #map {
+                bottom: 30px;
+                left: 0;
+                right: 0;
+                position: absolute;
+                top: 56px;                
+            }
+
+            #footer {
+                background: #004360;
+                bottom: 0;
+                height: 30px;
+                position: absolute;
+                width: 100%;
+                z-index: 99;
+            }
+
+            #footer-text {
+                color: lightgray;
+                left: 10px;
+                position: absolute;
+                top: 50%;
+                transform: translateY(-50%);
+            }
+
+            #header {
+                background-color: #00D3EB;
+                display: block;
+                height: 56px;
+                position: relative;
+                width: 100%;
+                z-index: 99;
+            }
+
+            #header #logo {
+                left: 10px;
+                position: absolute;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 165px;
+            }
+
+            #header #text {
+                /* font-size: 16px;
+                font-weight: 400;
+                letter-spacing: .32px; */
+
+
+                left: 200px;
+                position: absolute;
+                color: whitesmoke;
+                top: 50%;
+                transform: translateY(-50%);
+            }
+
+            #pagename {
+                display: inline-block;
+                font-size: 26px;
+                font-weight: bold;
+            }
+
+            #warning {
+                display: inline-block;
+                color: black;
+                font-weight: bold;
+                margin-left: 15px;
+            }
+            #warning-mobile-inner {
+                left: 15px;
+                position: absolute;
+                top: 50%;
+                transform: translateY(-50%);
+            }
+
+            @media screen and (max-width: 800px) {
+                #footer {
+                    font-size: 12px;
+                }
+
+                #logo {
+                    display: none;
+                }
+                #header #text {
+                    left: 15px;
+                }
+
+                /* #warning {
+                    display: none;
+                }
+                #warning-mobile {
+                    background: #004360;
+                    height: 30px;
+                    left: 0;
+                    padding-left: 10px;
+                    position: absolute;
+                    right: 0;
+                    top: 56px;
+                    width: 100%;
+                } */
+            }
+
+            .marker {
+                border: 2px solid #004360;
+                /* background: #00A3BD; */
+                border-radius: 40px;
+                height: 40px;
+                text-align: center;
+                width: 40px;
+            }
+            .marker-inner {
+                background: #00A3BD;
+                border-radius: 40px;
+                height: 30px;
+                left: 50%;
+                position: absolute;
+                top: 50%;
+                transform: translate(-50%, -50%);
+                width: 30px;
+            }
+        </style>
+        <script>
+            window.app = {
+                config: {
+                    // calls_for_service: "https://internal.chattadata.org/resource/5ts3-ay5h.json"
+                    // calls_for_service: "./test-data/calls_for_service.json",
+                    calls_for_service: "https://internal.chattadata.org/resource/5ts3-ay5h.json",
+                    requests_to_311: "https://internal.chattadata.org/resource/k7eh-65x3.json?$query=SELECT%20service_request_key%2C%20created_date%2C%20department%2C%20request_type%2C%20description%2C%20request_type_code%2C%20status_code%2C%20intake_form%2C%20days_to_complete%2C%20sla_fy_2019%2C%20on_time_indicator%2C%20completed_at%2C%20due_at%2C%20ispublic%2C%20council_district%2C%20loc%20WHERE%20(%60request_type%60%20%3D%20'Flooding')%20AND%20((%60created_date%60%20%3E%20'2024-09-26')%20AND%20%60created_date%60%20IS%20NOT%20NULL)"
+                }
+            }
+
+            if (window.location.href.indexOf("demo=true") > -1) {
+                window.app.config = {
+                    requests_to_311: "https://internal.chattadata.org/resource/k7eh-65x3.json?$query=SELECT%20service_request_key%2C%20created_date%2C%20department%2C%20request_type%2C%20description%2C%20request_type_code%2C%20status_code%2C%20intake_form%2C%20days_to_complete%2C%20sla_fy_2019%2C%20on_time_indicator%2C%20completed_at%2C%20due_at%2C%20ispublic%2C%20council_district%2C%20loc%20WHERE%20(%60request_type%60%20%3D%20'Flooding')%20AND%20((%60created_date%60%20%3E%20'2024-09-01')%20AND%20%60created_date%60%20IS%20NOT%20NULL)"
+                }
+            }
+        </script>
+    </head>
+    <body>
+        <div id="app">
+            <div id="header">
+                <img id="logo" src="./assets/img/city-logo.svg" alt="Chattanooga.gov logo">
+                <div id="text">
+                    <div id="pagename">Flood Map</div>
+                    <div id="warning"><a href="https://www.hamiltontn911.gov/contact-us.php" style="text-decoration: none;"><span style="color: #ba0f0f;">Emergency?</span> <span style="color: black">Dial 9-1-1</span></a></div>
+                </div>
+                <!-- <div id="warning-mobile"><div id="warning-mobile-inner"><a href="https://www.hamiltontn911.gov/contact-us.php" style="text-decoration: none;"><span style="color: #ba0f0f;">Emergency?</span> <span style="color: lightgray">Dial 9-1-1</span></a></div></div> -->
+            </div>
+            <div id="map"></div>
+            <div id="footer">
+                <div id="footer-text">
+                    Report non-emergency flooding by <a href="https://chattanooga.gov/request-and-report/311-help-info" style="color: white;">contacting 3-1-1</a>.
+                </div>
+            </div>
+        </div>
+        <script>
+            function get_xy_point(item) {
+                if (typeof item.loc === "object" && item.loc.type === "Point" && typeof item.loc.coordinates === "object" && item.loc.coordinates.length === 2) {
+                    return item.loc.coordinates;
+                } else if (typeof item.latitude === "number" && item.longitude === "number") {
+                    return [item.longitude, item.latitude];
+                } else if (typeof item.Latitude === "number" && item.Longitude === "number") {
+                    return [item.Longitude, item.Latitude];
+                }
+            }
+            
+            var mapOptions = {
+                container: 'map', // container id
+                // Define the map syle (OpenStreetMap raster tiles)
+                style: "https://api.maptiler.com/maps/streets-v2-light/style.json?key=mYniYTe7rfEM5jAFdfKy",
+                center: [-85.310947, 35.055666], // starting position [lng, lat]
+                zoom: 11 // starting zoom
+            };
+
+            // zoom out more if on mobile
+            if (window.innerWidth < 800) mapOptions.zoom = 9;
+
+            var map = new maplibregl.Map(mapOptions);
+
+            // fetch calls for service
+            fetch(window.app.config.requests_to_311)
+                .then(function (response) { return response.json(); })
+                .then(function (items) {
+                    items = items.slice(0, 100);
+                    for (let i = 0; i < items.length; i++) {
+                        const item = items[i];
+                        const point = get_xy_point(item);  
+                        console.log("point:", point);             
+
+
+                        // create a DOM element for the marker
+                        const el = document.createElement('div');
+                        el.className = "marker";
+                        el.innerHTML = '<div class="marker-inner"></div>';
+
+                        const marker = new maplibregl.Marker( { element: el }).setLngLat(point).addTo(map);
+                    }
+                });
+
+
+            fetch(window.app.config.calls_for_service)
+                .then(function (response) { return response.json(); })
+                .then(function (items) {
+                    items = items.slice(0, 100);
+                    console.log(items);
+                    for (let i = 0; i < items.length; i++) {
+                        const item = items[i];
+                        const latitude = Number(item['Latitude'] || item['latitude']);
+                        const longitude = Number(item['Longitude'] || item['longitude']);   
+                        if (isNaN(latitude) || isNaN(longitude)) continue;                     
+
+                        const point = [longitude, latitude];
+
+                        // create a DOM element for the marker
+                        const el = document.createElement('div');
+                        el.className = 'marker';
+                        el.innerHTML = '<div class="marker-inner"></div>';
+
+                        const marker = new maplibregl.Marker( { element: el }).setLngLat(point).addTo(map);
+                    }
+                });                
+        </script>
+    </body>
+</html>
